@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shortlink – create and track short links</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#0e1b26;--mute:#5b6b7a;--line:#d5dce3;--teal:#0b7a75;--amber:#b87503;--rose:#c2364a;--cell:#dfe6ec;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#0c141b;--panel:#121e28;--ink:#e8eef3;--mute:#8fa1b1;--line:#243542;--teal:#3cc4bb;--amber:#f0b429;--rose:#ff7a8c;--cell:#1d2c38;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,sans-serif}
+h1,h2,.num{font-family:'Bricolage Grotesque',Figtree,system-ui,sans-serif;letter-spacing:-.02em}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:clamp(30px,5vw,48px);line-height:1;margin:0;font-weight:800}
+.sub{color:var(--mute);margin:6px 0 0;max-width:46ch}
+.pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;color:var(--mute);background:var(--panel)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--teal)} .dot.off{background:var(--rose)}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+h2{font-size:19px;margin:0 0 14px;font-weight:700}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit;font-weight:600;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px}
+button:hover{border-color:var(--teal)}
+button.primary{width:100%;margin-top:16px;background:var(--teal);border-color:var(--teal);color:#fff;padding:12px}
+@media(prefers-color-scheme:dark){button.primary{color:#04201e}}
+button:disabled{opacity:.55;cursor:not-allowed}
+.err{color:var(--rose);font-size:14px;min-height:20px;margin:10px 0 0}
+.bucket{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.cells{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin:8px 0}
+.cells i{height:22px;border-radius:4px;background:var(--cell);transition:background .25s}
+.cells i.on{background:var(--teal)} .cells.low i.on{background:var(--amber)} .cells.out i.on{background:var(--rose)}
+.hint{font-size:13px;color:var(--mute);margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--bg);border-radius:10px;padding:10px 12px}
+.stat .num{font-size:26px;font-weight:700;display:block;line-height:1.1}.stat span{font-size:13px;color:var(--mute)}
+.total{height:90px;width:100%;display:block;margin-bottom:6px}
+.link{display:grid;grid-template-columns:1fr auto;gap:6px 14px;padding:14px 0;border-top:1px solid var(--line)}
+.link .code{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:var(--teal);text-decoration:none;word-break:break-all}
+.link .dest{color:var(--mute);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46ch}
+.meta{font-size:13px;color:var(--mute)}
+.side{display:flex;flex-direction:column;align-items:end;gap:6px}
+.spark{width:120px;height:32px}
+.acts{display:flex;gap:6px;grid-column:1/-1;flex-wrap:wrap}.acts button{padding:5px 10px;font-size:14px}
+.acts .del:hover{border-color:var(--rose);color:var(--rose)}
+.empty{padding:28px 0 8px;color:var(--mute)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>Shortlink</h1><p class="sub">Paste a long address, get a short one, and watch the clicks arrive.</p></div>
+    <span class="pill" id="health"><i class="dot"></i><span>Connecting…</span></span>
+  </header>
+  <div class="grid">
+    <section class="card" aria-labelledby="c1">
+      <h2 id="c1">Create a link</h2>
+      <form id="f" novalidate>
+        <label for="url">Destination address</label>
+        <input id="url" type="url" placeholder="https://example.com/a/very/long/path" required autocomplete="off">
+        <div class="row2">
+          <div><label for="alias">Custom name (optional)</label><input id="alias" placeholder="spring-sale" maxlength="32" autocomplete="off"></div>
+          <div><label for="ttl">Expires after</label>
+            <select id="ttl"><option value="">Never</option><option value="60">1 minute</option><option value="3600">1 hour</option><option value="86400">1 day</option><option value="604800">7 days</option></select></div>
+        </div>
+        <button class="primary" id="go">Shorten link</button>
+        <p class="err" id="err" role="alert"></p>
+      </form>
+      <div class="bucket">
+        <strong>Creation allowance</strong>
+        <div class="cells" id="cells" aria-hidden="true"></div>
+        <p class="hint" id="allow">10 of 10 creations available. One refills every 2 seconds.</p>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="c2">
+      <h2 id="c2">Your links</h2>
+      <div class="stats">
+        <div class="stat"><span class="num" id="sLinks">0</span><span>active links</span></div>
+        <div class="stat"><span class="num" id="sClicks">0</span><span>total clicks</span></div>
+        <div class="stat"><span class="num" id="sHit">–</span><span>cache hit rate</span></div>
+      </div>
+      <svg class="total" id="total" viewBox="0 0 300 90" preserveAspectRatio="none" role="img" aria-label="Clicks per minute across all links, last 30 minutes"></svg>
+      <p class="hint">Clicks per minute across all links, last 30 minutes</p>
+      <div id="list"></div>
+    </section>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+let links = [], remaining = 10, busy = false;
+const cells = $('cells'); for (let i = 0; i < 10; i++) cells.appendChild(document.createElement('i'));
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2200)}
+function setAllowance(n){
+  remaining=Math.max(0,Math.min(10,n));
+  [...cells.children].forEach((c,i)=>c.classList.toggle('on',i<remaining));
+  cells.className='cells'+(remaining===0?' out':remaining<=3?' low':'');
+  $('allow').textContent=remaining===0?'No creations left. Wait a moment for one to refill.':`${remaining} of 10 creations available. One refills every 2 seconds.`;
+}
+setInterval(()=>{ if(remaining<10) setAllowance(remaining+1); },2000);
+setAllowance(10);
+
+function spark(series,w,h,fill){
+  const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  if(!fill){s.setAttribute('class','spark');s.setAttribute('aria-hidden','true')}
+  const max=Math.max(1,...series),step=w/(series.length-1);
+  const pts=series.map((v,i)=>`${(i*step).toFixed(1)},${(h-3-(v/max)*(h-8)).toFixed(1)}`);
+  const area=document.createElementNS(NS,'path');area.setAttribute('d',`M0,${h} L${pts.join(' L')} L${w},${h}Z`);area.setAttribute('fill','var(--teal)');area.setAttribute('opacity','.14');
+  const line=document.createElementNS(NS,'polyline');line.setAttribute('points',pts.join(' '));line.setAttribute('fill','none');line.setAttribute('stroke','var(--teal)');line.setAttribute('stroke-width','2');line.setAttribute('vector-effect','non-scaling-stroke');
+  s.append(area,line);return s;
+}
+function ago(ts){const s=Math.round((Date.now()-ts)/1000);return s<60?`${s}s ago`:s<3600?`${Math.floor(s/60)}m ago`:s<86400?`${Math.floor(s/3600)}h ago`:`${Math.floor(s/86400)}d ago`}
+function expiry(ts){if(!ts)return 'Never expires';const s=Math.round((ts-Date.now())/1000);return s<=0?'Expired':s<90?`Expires in ${s}s`:s<5400?`Expires in ${Math.round(s/60)}m`:s<172800?`Expires in ${Math.round(s/3600)}h`:`Expires in ${Math.round(s/86400)}d`}
+
+function render(stats){
+  $('sLinks').textContent=links.length;
+  $('sClicks').textContent=links.reduce((a,l)=>a+l.clicks,0);
+  const tot=stats.cacheHits+stats.cacheMisses;$('sHit').textContent=tot?Math.round(stats.cacheHits/tot*100)+'%':'–';
+  const sum=Array.from({length:30},(_,i)=>links.reduce((a,l)=>a+l.series[i],0));
+  const tsvg=$('total');tsvg.replaceChildren(...spark(sum,300,90,true).childNodes);
+  const list=$('list');list.replaceChildren();
+  if(!links.length){const p=document.createElement('p');p.className='empty';p.textContent='No links yet. Paste an address on the left to create your first one.';list.append(p);return}
+  for(const l of links){
+    const d=document.createElement('div');d.className='link';
+    const left=document.createElement('div');
+    const a=document.createElement('a');a.className='code';a.href=l.shortUrl;a.target='_blank';a.rel='noopener';a.textContent=l.shortUrl.replace(/^https?:\/\//,'');
+    const dest=document.createElement('div');dest.className='dest';dest.textContent=l.url;dest.title=l.url;
+    const meta=document.createElement('div');meta.className='meta';meta.textContent=`${l.clicks} click${l.clicks===1?'':'s'}. Created ${ago(l.createdAt)}. ${expiry(l.expiresAt)}.`;
+    left.append(a,dest,meta);
+    const side=document.createElement('div');side.className='side';side.append(spark(l.series,120,32));
+    const acts=document.createElement('div');acts.className='acts';
+    const mk=(t,fn,c)=>{const b=document.createElement('button');b.type='button';b.textContent=t;if(c)b.className=c;b.onclick=fn;return b};
+    acts.append(
+      mk('Copy',async()=>{try{await navigator.clipboard.writeText(l.shortUrl);toast('Copied to clipboard')}catch{toast('Copy failed. Select the link and copy it manually.')}}),
+      mk('Test click',async()=>{await fetch(l.shortUrl,{redirect:'manual'});toast('Click recorded');load()}),
+      mk('Delete',async()=>{await fetch('/api/links/'+l.code,{method:'DELETE'});toast('Link deleted');load()},'del'));
+    d.append(left,side,acts);list.append(d);
+  }
+}
+async function load(){
+  try{
+    const r=await fetch('/api/links');const j=await r.json();links=j.links;render(j.stats);
+    $('health').innerHTML='<i class="dot"></i><span>Service running</span>';
+  }catch{$('health').innerHTML='<i class="dot off"></i><span>Service unreachable</span>'}
+}
+$('f').addEventListener('submit',async(e)=>{
+  e.preventDefault();if(busy)return;busy=true;$('go').disabled=true;$('err').textContent='';
+  const body={url:$('url').value.trim()};
+  if($('alias').value.trim())body.alias=$('alias').value.trim();
+  if($('ttl').value)body.ttlSeconds=Number($('ttl').value);
+  try{
+    const r=await fetch('/api/links',{method:'POST',body:JSON.stringify(body)});
+    const rem=r.headers.get('X-RateLimit-Remaining');if(rem!==null)setAllowance(Number(rem));
+    const j=await r.json();
+    if(!r.ok){$('err').textContent=r.status===429?`You are creating links too quickly. Try again in ${j.retryAfter} seconds.`:j.error;return}
+    $('url').value='';$('alias').value='';toast('Link created');await load();
+  }catch{$('err').textContent='Could not reach the server. Check that it is running and try again.'}
+  finally{busy=false;$('go').disabled=false}
+});
+load();setInterval(load,4000);
+</script>
+</body>
+</html>
